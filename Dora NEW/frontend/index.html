@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISL — Indian Sign Language AI Recognition & Translation</title>
+  <meta name="description" content="State-of-the-art real-time Indian Sign Language (ISL) recognition, bidirectional translation, 3D hand avatar, live accessible call simulation, and AI custom gesture training.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00f5d4">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✋</text></svg>">
+  
+  <!-- MediaPipe Hands & Camera Utils for zero-latency 60FPS hand tracking -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <!-- TensorFlow.js & COCO-SSD for Real-Time Universal Object & Item Recognition -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+</head>
+<body data-theme="obsidian">
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Navigation Bar -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <span class="hand-symbol">✋</span>
+        <span class="pulse-ring"></span>
+      </div>
+      <div class="brand-text">
+        <h1><span class="gradient-text">ISL</span> — Indian Sign Language AI</h1>
+        <p class="tagline">Indian Sign Language Studio & Neural Recognizer</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" role="tablist">
+      <button class="nav-tab active" id="tabBtnStudio" data-tab="studio">
+        <span class="tab-icon">⚡</span>
+        <span class="tab-label" data-en="Recognition Studio" data-hi="पहचान स्टूडियो" data-ta="அடையாள அரங்கம்" data-te="గుర్తింపు స్టూడియో" data-bn="শনাক্তকরণ স্টুডিও" data-mr="ओळख स्टुडिओ">Recognition Studio</span>
+      </button>
+      <button class="nav-tab" id="tabBtnTranslator" data-tab="translator">
+        <span class="tab-icon">🔄</span>
+        <span class="tab-label" data-en="2-Way Translator" data-hi="द्वि-मार्गी अनुवादक" data-ta="இருவழி மொழிபெயர்ப்பாளர்" data-te="ద్విమార్గ అనువాదకం" data-bn="দ্বিমুখী অনুবাদক" data-mr="द्विमार्गी अनुवादक">2-Way Translator</span>
+      </button>
+      <button class="nav-tab" id="tabBtnCall" data-tab="call">
+        <span class="tab-icon">📞</span>
+        <span class="tab-label" data-en="Accessible Call" data-hi="लाइव कॉल" data-ta="அணுகக்கூடிய அழைப்பு" data-te="లైవ్ కాల్" data-bn="অ্যাক্সেসিবল কল" data-mr="लाईव्ह कॉल">Accessible Call</span>
+      </button>
+      <button class="nav-tab" id="tabBtnDictionary" data-tab="dictionary">
+        <span class="tab-icon">📖</span>
+        <span class="tab-label" data-en="ISL Dictionary" data-hi="ISL शब्दकोश" data-ta="ISL அகராதி" data-te="ISL నిఘంటువు" data-bn="ISL অভিধান" data-mr="ISL शब्दकोश">ISL Dictionary</span>
+      </button>
+      <button class="nav-tab" id="tabBtnQuiz" data-tab="quiz">
+        <span class="tab-icon">🎯</span>
+        <span class="tab-label" data-en="Sign Challenge" data-hi="संकेत चुनौती" data-ta="சைகை சவால்" data-te="సైగ సవాలు" data-bn="ইশারা চ্যালেঞ্জ" data-mr="संकेत आव्हान">Sign Challenge</span>
+      </button>
+      <button class="nav-tab" id="tabBtnTrainer" data-tab="trainer">
+        <span class="tab-icon">🧠</span>
+        <span class="tab-label" data-en="AI Custom Trainer" data-hi="कस्टम AI ट्रेनर" data-ta="தனிப்பயன் AI பயிற்சி" data-te="కస్టమ్ AI ట్రైనర్" data-bn="কাস্টম AI ট্রেইনার" data-mr="कस्टम AI ट्रेनर">AI Custom Trainer</span>
+      </button>
+      <button class="nav-tab" id="tabBtnMemory" data-tab="memory">
+        <span class="tab-icon">🃏</span>
+        <span class="tab-label" data-en="Memory Match" data-hi="मेमोरी गेम" data-ta="நினைவக விளையாட்டு" data-te="మెమరీ గేమ్" data-bn="মেমোরি গেম" data-mr="मेमरी गेम">Memory Match</span>
+      </button>
+    </nav>
+
+    <!-- Header Actions & Controls -->
+    <div class="header-actions">
+      <!-- Healthcare Phraseboard Quick Button -->
+      <button class="icon-btn" id="btnHealthcarePhrases" title="Healthcare & Emergency Phraseboard">
+        <span>🩺</span>
+      </button>
+
+      <!-- Multi-Regional Language Selector (EN, HI, TA, TE, BN, MR) -->
+      <div class="lang-dropdown-wrapper" id="langDropdownWrapper">
+        <button class="lang-selector-btn" id="langSelectorBtn" title="Switch Language across India">
+          <span class="lang-flag" id="currentLangFlag">🇬🇧</span>
+          <span class="lang-code-label" id="currentLangLabel">English</span>
+          <span class="lang-dropdown-arrow">▾</span>
+        </button>
+        <div class="lang-menu" id="langMenu">
+          <button class="lang-opt-item active" data-lang="en">
+            <span class="opt-flag">🇬🇧</span>
+            <div class="opt-text"><span class="opt-name">English</span><span class="opt-native">Global</span></div>
+          </button>
+          <button class="lang-opt-item" data-lang="hi">
+            <span class="opt-flag">🇮🇳</span>
+            <div class="opt-text"><span class="opt-name">हिन्दी</span><span class="opt-native">Hindi</span></div>
+          </button>
+          <button class="lang-opt-item" data-lang="ta">
+            <span class="opt-flag">🇮🇳</span>
+            <div class="opt-text"><span class="opt-name">தமிழ்</span><span class="opt-native">Tamil</span></div>
+          </button>
+          <button class="lang-opt-item" data-lang="te">
+            <span class="opt-flag">🇮🇳</span>
+            <div class="opt-text"><span class="opt-name">తెలుగు</span><span class="opt-native">Telugu</span></div>
+          </button>
+          <button class="lang-opt-item" data-lang="bn">
+            <span class="opt-flag">🇮🇳</span>
+            <div class="opt-text"><span class="opt-name">বাংলা</span><span class="opt-native">Bengali</span></div>
+          </button>
+          <button class="lang-opt-item" data-lang="mr">
+            <span class="opt-flag">🇮🇳</span>
+            <div class="opt-text"><span class="opt-name">मराठी</span><span class="opt-native">Marathi</span></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- PWA Install App Button -->
+      <button class="icon-btn install-pwa-btn" id="btnInstallApp" style="display: none;" title="Install ISL App to Device">
+        <span>📲</span>
+      </button>
+
+      <!-- Theme Switcher -->
+      <div class="theme-dropdown-wrapper">
+        <button class="icon-btn" id="themeBtn" title="Change Theme Mode">
+          <span>🎨</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <button class="theme-opt active" data-theme="obsidian">🌌 Cyber Obsidian</button>
+          <button class="theme-opt" data-theme="emerald">🟢 Neon Matrix</button>
+          <button class="theme-opt" data-theme="amethyst">🟣 Sunset Amethyst</button>
+          <button class="theme-opt" data-theme="contrast">⚡ High Contrast</button>
+        </div>
+      </div>
+
+      <!-- Emergency SOS Trigger Button -->
+      <button class="sos-header-btn" id="headerSosBtn" title="Emergency SOS Assistance">
+        <span class="sos-pulsing-dot"></span>
+        <span>SOS 🚨</span>
+      </button>
+
+      <!-- Backend Connection Status Pill -->
+      <div class="status-badge" id="backendStatusPill" title="Backend Connection Status">
+        <span class="status-dot pulsing"></span>
+        <span class="status-label" id="backendStatusLabel">Connecting Backend...</span>
+      </div>
+
+      <!-- TTS Voice Audio Toggle -->
+      <button class="icon-btn" id="ttsToggleBtn" title="Toggle Audio Voice Output">
+        <span id="ttsIcon">🔊</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="app-main">
+    
+    <!-- ==================== TAB 1: RECOGNITION STUDIO ==================== -->
+    <section class="tab-pane active" id="paneStudio">
+      <div class="studio-grid">
+        
+        <!-- Left: Camera & Skeletal Vision HUD -->
+        <div class="glass-panel vision-viewport-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span class="dot-indicator"></span>
+              <h3>Neural Vision Stream</h3>
+            </div>
+            <div class="stream-stats">
+              <span class="stat-tag" id="fpsCounter">FPS: --</span>
+              <span class="stat-tag" id="handsCounter">Hands: 0</span>
+              <span class="stat-tag" id="objectsCounter">Items: 0</span>
+              <span class="stat-tag glow-tag" id="handTrackingMode">ISL AI Active</span>
+            </div>
+          </div>
+
+          <!-- Multi-AI Vision Mode Selector -->
+          <div class="vision-mode-bar" id="visionModeBar">
+            <button class="vision-mode-btn active" id="modeBtnAll" data-mode="all" title="Detect Both Hand Motions and Any Objects/Items">
+              <span>🌟 Auto AI (Gestures + Any Object)</span>
+            </button>
+            <button class="vision-mode-btn" id="modeBtnGestures" data-mode="gestures" title="Only Hand Gestures & Motions">
+              <span>✋ Hand Motions & Signs</span>
+            </button>
+            <button class="vision-mode-btn" id="modeBtnObjects" data-mode="objects" title="Only Object & Item Detection">
+              <span>📦 Object / Item Scanner</span>
+            </button>
+          </div>
+
+          <!-- Video & Overlay Canvas Container -->
+          <div class="camera-stage" id="cameraStage">
+            <video id="webcamVideo" playsinline muted autoplay></video>
+            <canvas id="skeletonCanvas"></canvas>
+
+            <!-- Recording Countdown Overlay (for AI Custom Trainer) -->
+            <div class="record-countdown-overlay" id="recordCountdownOverlay">
+              <span class="countdown-digit" id="countdownDigit">3</span>
+              <p class="countdown-caption" id="countdownCaption">Get Ready to Sign...</p>
+            </div>
+
+            <!-- Over-video Live Floating Recognition Badge -->
+            <div class="live-floating-badge" id="floatingBadge">
+              <div class="floating-symbol" id="floatingSymbol">👋</div>
+              <div class="floating-info">
+                <span class="floating-sign" id="floatingSign">Show hand gesture</span>
+                <span class="floating-meta" id="floatingMeta">Awaiting input...</span>
+              </div>
+            </div>
+
+            <!-- Hold-to-type Visual Progress Ring on Video -->
+            <div class="hold-indicator" id="holdIndicator">
+              <svg class="progress-ring" width="60" height="60">
+                <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.15)" stroke-width="4" fill="transparent" r="26" cx="30" cy="30"/>
+                <circle class="progress-ring__circle" id="holdRingCircle" stroke="var(--accent-cyan)" stroke-width="4" stroke-dasharray="163.36" stroke-dashoffset="163.36" fill="transparent" r="26" cx="30" cy="30"/>
+              </svg>
+              <span class="hold-text" id="holdText">Hold</span>
+            </div>
+
+            <!-- Camera Idle / Permission Placeholder -->
+            <div class="camera-idle-state" id="cameraIdleState">
+              <div class="idle-graphic">📷</div>
+              <h4>Camera Stream Inactive</h4>
+              <p>Click "Start Camera" to initialize the ISL neural tracking pipeline.</p>
+              <button class="primary-btn" id="startCameraBtn">
+                <span>Start Camera</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Camera Control Toolbar -->
+          <div class="camera-controls">
+            <button class="control-btn active" id="toggleCameraBtn" title="Pause / Resume Camera">
+              <span class="btn-icon">⏸️</span>
+              <span class="btn-text">Pause Stream</span>
+            </button>
+            <button class="control-btn" id="toggleSkeletonBtn" title="Toggle Skeleton Overlay">
+              <span class="btn-icon">🦴</span>
+              <span class="btn-text">Skeleton Glow</span>
+            </button>
+            <button class="control-btn" id="flipCameraBtn" title="Mirror Camera Horizontal">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-text">Flip Mirror</span>
+            </button>
+            <button class="control-btn" id="btnRecordVideoClip" title="Record 6-Second Video Clip of Signing">
+              <span class="btn-icon">📹</span>
+              <span class="btn-text">Record Clip</span>
+            </button>
+            <div class="threshold-slider-group">
+              <label for="confSlider">Min Confidence: <span id="confVal">65%</span></label>
+              <input type="range" id="confSlider" min="50" max="95" value="65" step="5">
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Real-time Output, Biomechanics & Sentence Builder -->
+        <div class="studio-sidebar">
+          
+          <!-- Detected Sign Showcase Card -->
+          <div class="glass-panel showcase-panel">
+            <div class="showcase-top">
+              <span class="category-chip" id="signCategoryBadge">Awaiting Sign</span>
+              <div class="confidence-pill" id="confidencePill">
+                <span class="conf-bar-fill" id="confBarFill" style="width: 0%"></span>
+                <span class="conf-text" id="confText">0% Match</span>
+              </div>
+            </div>
+
+            <div class="detected-sign-display">
+              <div class="sign-giant-title" id="detectedSignTitle">Ready</div>
+              <div class="sign-hindi-sub" id="detectedSignHindi">तैयार</div>
+              <p class="sign-hint" id="detectedSignHint">Position your hand clearly within the camera frame.</p>
+            </div>
+
+            <!-- Real-Time Finger Extension Biomechanics Gauge -->
+            <div class="biomechanics-mini-hud">
+              <div class="bio-header">
+                <span class="bio-title">📊 Live Finger Extension Biomechanics:</span>
+                <span class="stability-tag" id="stabilityTag">Stability: 100%</span>
+              </div>
+              <div class="finger-bars-grid">
+                <div class="finger-bar-item">
+                  <span class="f-name">Thumb</span>
+                  <div class="f-meter"><div class="f-fill" id="fThumbFill" style="width: 20%"></div></div>
+                </div>
+                <div class="finger-bar-item">
+                  <span class="f-name">Index</span>
+                  <div class="f-meter"><div class="f-fill" id="fIndexFill" style="width: 20%"></div></div>
+                </div>
+                <div class="finger-bar-item">
+                  <span class="f-name">Middle</span>
+                  <div class="f-meter"><div class="f-fill" id="fMiddleFill" style="width: 20%"></div></div>
+                </div>
+                <div class="finger-bar-item">
+                  <span class="f-name">Ring</span>
+                  <div class="f-meter"><div class="f-fill" id="fRingFill" style="width: 20%"></div></div>
+                </div>
+                <div class="finger-bar-item">
+                  <span class="f-name">Pinky</span>
+                  <div class="f-meter"><div class="f-fill" id="fPinkyFill" style="width: 20%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sentence Builder & Speech Studio -->
+          <div class="glass-panel sentence-panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <span class="dot-indicator green"></span>
+                <h3>Sentence Construction Studio</h3>
+              </div>
+              <span class="auto-type-badge" title="Signs held for 1 second are auto-appended">⚡ Auto-Type: Active</span>
+            </div>
+
+            <!-- Smart Predictive Word Autocomplete Bar -->
+            <div class="predictive-autocomplete-bar" id="predictiveBar">
+              <span class="pred-label">✨ Word Prediction:</span>
+              <div class="pred-chips-wrapper" id="predChips">
+                <button class="pred-chip" data-word="HELLO">HELLO</button>
+                <button class="pred-chip" data-word="NAMASTE">NAMASTE</button>
+                <button class="pred-chip" data-word="HELP">HELP</button>
+                <button class="pred-chip" data-word="THANK YOU">THANK YOU</button>
+                <button class="pred-chip" data-word="WATER">WATER</button>
+              </div>
+            </div>
+
+            <!-- Sentence Display Area -->
+            <div class="sentence-box">
+              <textarea id="sentenceOutput" placeholder="Recognized gestures will assemble here into complete sentences..." rows="3"></textarea>
+              <div class="sentence-cursor"></div>
+            </div>
+
+            <!-- Sentence Action Bar -->
+            <div class="sentence-actions">
+              <button class="action-btn" id="btnSpace" title="Add Space">
+                <span>␣ Space</span>
+              </button>
+              <button class="action-btn" id="btnBackspace" title="Remove Last Character">
+                <span>⌫ Backspace</span>
+              </button>
+              <button class="action-btn" id="btnClear" title="Clear Entire Sentence">
+                <span>🗑️ Clear</span>
+              </button>
+              <button class="action-btn" id="btnCopy" title="Copy to Clipboard">
+                <span>📋 Copy</span>
+              </button>
+              <button class="action-btn" id="btnDownloadTranscript" title="Download Conversation Transcript">
+                <span>📥 Export</span>
+              </button>
+              <button class="action-btn highlight-action" id="btnOpenAnalytics" title="Session Analytics & Proficiency Certificate">
+                <span>📊 Analytics & Certificate</span>
+              </button>
+              <button class="action-btn primary-action" id="btnSpeak" title="Speak Text Out Loud">
+                <span>🔊 Speak Out</span>
+              </button>
+            </div>
+
+            <!-- Recent Gesture Timeline / Chip Stream -->
+            <div class="recent-gestures-tray">
+              <span class="tray-label">Recent Signs:</span>
+              <div class="chips-container" id="recentChips">
+                <span class="empty-chip-note">No gestures registered yet</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 2-WAY TRANSLATOR ==================== -->
+    <section class="tab-pane" id="paneTranslator">
+      <div class="translator-container glass-panel">
+        <div class="translator-header">
+          <div>
+            <h2>Reverse Two-Way Communicator</h2>
+            <p>Type English/Hindi text or speak into the microphone to convert words into visual Indian Sign Language (ISL) demonstrations and fingerspelling sequences.</p>
+          </div>
+          <!-- Playback Speed Control -->
+          <div class="speed-selector">
+            <span class="speed-label">Playback Speed:</span>
+            <button class="speed-btn" data-speed="0.6">0.6x</button>
+            <button class="speed-btn active" data-speed="1.0">1.0x</button>
+            <button class="speed-btn" data-speed="1.5">1.5x</button>
+          </div>
+        </div>
+
+        <div class="translator-input-group">
+          <div class="input-wrapper">
+            <input type="text" id="translateInput" placeholder="Type word or phrase (e.g., 'HELLO', 'WATER', 'HELP', 'NAMASTE', 'APPLE')..." value="HELLO">
+            <!-- Voice Dictation Button -->
+            <button class="mic-dictate-btn" id="btnMicDictate" title="Speak into microphone">
+              <span id="micIcon">🎙️</span>
+              <span id="micText">Voice Dictate</span>
+            </button>
+            <button class="primary-btn" id="btnTranslate">
+              <span>Translate</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+          <div class="quick-sample-chips">
+            <span class="quick-chip-label">Quick Phrases:</span>
+            <button class="sample-chip" data-text="NAMASTE">🙏 Namaste</button>
+            <button class="sample-chip" data-text="HELLO">👋 Hello</button>
+            <button class="sample-chip" data-text="HELP">🆘 Help</button>
+            <button class="sample-chip" data-text="THANK YOU">🤝 Thank You</button>
+            <button class="sample-chip" data-text="WATER">💧 Water</button>
+            <button class="sample-chip" data-text="FOOD">🍲 Food</button>
+            <button class="sample-chip" data-text="DOCTOR">🏥 Doctor</button>
+            <button class="sample-chip" data-text="I LOVE YOU">🤟 I Love You</button>
+          </div>
+        </div>
+
+        <!-- 3D Virtual Signer Hand Avatar Rig Stage -->
+        <div class="avatar-stage-box">
+          <div class="avatar-header">
+            <h4>🤖 Virtual Signer 3D Hand Avatar Rig</h4>
+            <span class="avatar-hint">Click & drag canvas to rotate hand orientation in 3D</span>
+          </div>
+          <canvas id="virtualAvatarCanvas" width="480" height="240"></canvas>
+        </div>
+
+        <!-- Translation Visual Playback & Sequence -->
+        <div class="translation-output-stage">
+          <div class="stage-top-bar">
+            <h4 id="translationSummaryTitle">Sign Visual Sequence for "HELLO"</h4>
+            <div class="playback-controls">
+              <button class="control-btn primary-action-btn" id="btnPlaySequence">▶️ Play All</button>
+              <button class="control-btn" id="btnPauseSequence" style="display: none;">⏸️ Pause</button>
+              <button class="control-btn" id="btnPrevStep" title="Previous sign in sequence">⏮️ Prev</button>
+              <button class="control-btn" id="btnNextStep" title="Next sign in sequence">⏭️ Next</button>
+              <label class="loop-checkbox-label" title="Continuously repeat sequence">
+                <input type="checkbox" id="seqLoopToggle"> 🔁 Loop
+              </label>
+              <span class="seq-step-pill" id="seqStepPill">Step: 1/1</span>
+            </div>
+          </div>
+          
+          <div class="sequence-cards-grid" id="translationCardsGrid">
+            <!-- Cards populated dynamically via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: ACCESSIBLE LIVE CALL ==================== -->
+    <section class="tab-pane" id="paneCall">
+      <div class="call-container glass-panel">
+        <div class="call-header">
+          <div>
+            <h2>Accessible Video Call Simulator (Deaf ↔ Hearing)</h2>
+            <p>Simulates real-world accessible video consultations: sign language gestures are transcribed live into speech/captions for the hearing participant, and speech is translated into visual sign gestures for the Deaf participant.</p>
+          </div>
+          <button class="primary-btn red-btn" id="btnEndCall">
+            <span>End Call 📵</span>
+          </button>
+        </div>
+
+        <!-- Call Mode Switcher: AI Simulation vs Real P2P Call -->
+        <div class="call-mode-switcher-bar">
+          <div class="call-mode-tabs">
+            <button class="call-mode-btn active" id="btnCallModeSim">🤖 AI Consultation Simulation</button>
+            <button class="call-mode-btn" id="btnCallModeP2P">🌐 Real P2P Video Call (WebRTC)</button>
+          </div>
+          <!-- P2P Room Configuration Controls (visible when P2P mode is active) -->
+          <div class="p2p-room-controls" id="p2pRoomControls" style="display: none;">
+            <div class="p2p-input-group">
+              <span class="room-tag">Room ID:</span>
+              <input type="text" id="p2pRoomInput" placeholder="Room ID" value="DORA-101" maxlength="16">
+            </div>
+            <button class="action-btn" id="btnGenRoom" title="Generate random room code">🎲 New Code</button>
+            <button class="primary-btn green-btn" id="btnJoinRoom">📞 Start / Join Call</button>
+            <button class="action-btn" id="btnCopyRoomLink" title="Copy room invite link to clipboard">📋 Copy Link</button>
+            <span class="p2p-status-pill" id="p2pStatusPill">Idle</span>
+          </div>
+        </div>
+
+        <!-- Split Screen Call Grid -->
+        <div class="call-split-grid">
+          <!-- Participant 1: Sign Language User -->
+          <div class="call-participant-card">
+            <div class="participant-top">
+              <span class="user-badge">✋ Signer (You)</span>
+              <span class="call-live-pill" id="selfLivePill">LIVE</span>
+            </div>
+            <div class="call-video-box">
+              <video id="callSelfVideo" playsinline muted autoplay></video>
+              <div class="call-subtitles" id="signerSubtitles">Signing: "NAMASTE / HELLO"</div>
+            </div>
+            <div class="participant-footer">
+              <span>Camera Stream Active</span>
+              <span id="selfSignStatus">ISL Transcribing...</span>
+            </div>
+          </div>
+
+          <!-- Participant 2: Remote Peer (AI Doctor or Real WebRTC Remote Peer) -->
+          <div class="call-participant-card">
+            <div class="participant-top">
+              <span class="user-badge blue" id="peerBadgeTitle">🗣️ Remote Peer</span>
+              <span class="call-live-pill blue" id="peerLivePill">AUDIO ACTIVE</span>
+            </div>
+            <!-- Simulation Mode Avatar Box -->
+            <div class="call-avatar-box" id="simAvatarBox">
+              <div class="remote-avatar-graphic">🧑‍⚕️</div>
+              <div class="waveform-anim">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="call-subtitles" id="hearingSubtitles">Caller: "Hello, how can I assist you today?"</div>
+            </div>
+            <!-- Real WebRTC Peer Remote Video (Displayed in P2P mode) -->
+            <div class="call-video-box" id="p2pRemoteVideoBox" style="display: none;">
+              <video id="remotePeerVideo" playsinline autoplay></video>
+              <div class="call-subtitles" id="p2pRemoteSubtitles">Waiting for remote peer connection...</div>
+            </div>
+            <div class="participant-footer">
+              <span id="peerFooterStatus">Audio Synthesis Active</span>
+              <button class="control-btn" id="btnSimulatePeerReply">Simulate Peer Reply 💬</button>
+              <button class="control-btn p2p-mic-btn" id="btnP2pMicToggle" style="display: none;">🎙️ Speak to Peer</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Synchronized Live Transcript Feed -->
+        <div class="call-transcript-feed">
+          <h4>Synchronized Accessible Call Transcript:</h4>
+          <div class="transcript-messages" id="callTranscriptMessages">
+            <div class="t-msg peer">
+              <span class="t-sender">Hearing Peer:</span>
+              <p class="t-text">Hello! Welcome to the accessible medical consultation. I can hear your sign translations in real time.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: ISL DICTIONARY ==================== -->
+    <section class="tab-pane" id="paneDictionary">
+      <div class="dictionary-container">
+        <div class="dictionary-header glass-panel">
+          <div>
+            <h2>Indian Sign Language (ISL) Interactive Dictionary</h2>
+            <p>Explore complete hand postures, fingerspelling alphabets, numbers, and core two-handed expressions with bilingual descriptions.</p>
+          </div>
+          <div class="dict-search-wrapper">
+            <input type="text" id="dictSearchInput" placeholder="Search letter, English or Hindi name...">
+          </div>
+        </div>
+
+        <!-- Category Filters -->
+        <div class="dict-filter-bar">
+          <button class="filter-btn active" data-filter="all">All Signs</button>
+          <button class="filter-btn" data-filter="alphabet">Alphabets (A-Z)</button>
+          <button class="filter-btn" data-filter="number">Numbers (0-9)</button>
+          <button class="filter-btn" data-filter="phrase">Essential Phrases</button>
+          <button class="filter-btn" data-filter="Emergency">Emergency</button>
+          <button class="filter-btn" data-filter="Greetings">Greetings</button>
+        </div>
+
+        <!-- Dictionary Grid -->
+        <div class="dictionary-grid" id="dictionaryGrid">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: SIGN CHALLENGE & PRACTICE ==================== -->
+    <section class="tab-pane" id="paneQuiz">
+      <div class="quiz-container">
+        <!-- Challenge Mode Switcher -->
+        <div class="challenge-mode-switcher">
+          <button class="mode-toggle-btn active" id="btnModePractice">🎯 Practice Trainer</button>
+          <button class="mode-toggle-btn" id="btnModeSprint">⚡ 30s Reflex Sprint (Arcade)</button>
+        </div>
+
+        <!-- Mode 1: Practice Trainer Card -->
+        <div class="quiz-card glass-panel" id="practiceCard">
+          <div class="quiz-header">
+            <span class="quiz-badge">Interactive Sign Trainer</span>
+            <div class="quiz-score-board">
+              <div class="score-item">
+                <span class="score-label">Streak</span>
+                <span class="score-val" id="quizStreak">0 🔥</span>
+              </div>
+              <div class="score-item">
+                <span class="score-label">Score</span>
+                <span class="score-val" id="quizScore">0 pts</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="challenge-body">
+            <div class="challenge-prompt">
+              <p class="prompt-sub">Show this gesture to the camera:</p>
+              <div class="target-symbol" id="targetSymbol">✌️</div>
+              <h2 class="target-title" id="targetSignName">Alphabet V / Peace</h2>
+              <div class="target-hindi-title" id="targetSignHindi">अक्षर V / शांति</div>
+              <p class="target-desc" id="targetSignDesc">Extend index and middle finger in a V shape, other fingers folded.</p>
+            </div>
+
+            <!-- Real-time Verification Feedback -->
+            <div class="verification-meter">
+              <div class="meter-labels">
+                <span>Real-time Match Matcher</span>
+                <span id="quizMatchPercent">0%</span>
+              </div>
+              <div class="meter-bar">
+                <div class="meter-fill" id="quizMeterFill" style="width: 0%"></div>
+              </div>
+              <p class="match-status" id="quizMatchStatus">Waiting for gesture in camera...</p>
+            </div>
+
+            <div class="quiz-actions">
+              <button class="control-btn" id="btnSkipChallenge">Skip / Next Challenge ⏭️</button>
+              <button class="control-btn" id="btnHintChallenge">Show Hand Hint 💡</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode 2: 30-Second Rapid-Fire Reflex Sprint Card -->
+        <div class="sprint-card glass-panel" id="sprintCard" style="display: none;">
+          <div class="sprint-header">
+            <div class="sprint-title-box">
+              <span class="sprint-badge">⚡ Rapid-Fire Speed Test</span>
+              <h3>Sign Reflex Sprint</h3>
+            </div>
+            <div class="sprint-top-metrics">
+              <div class="sprint-metric">
+                <span class="sm-lbl">Time Left</span>
+                <span class="sm-val highlight-cyan" id="sprintTimerVal">30.0s</span>
+              </div>
+              <div class="sprint-metric">
+                <span class="sm-lbl">Multiplier</span>
+                <span class="sm-val multiplier-val" id="sprintComboVal">x1.0</span>
+              </div>
+              <div class="sprint-metric">
+                <span class="sm-lbl">Sprint Score</span>
+                <span class="sm-val highlight-emerald" id="sprintScoreVal">0 pts</span>
+              </div>
+              <div class="sprint-metric high-score-metric">
+                <span class="sm-lbl">Personal Best</span>
+                <span class="sm-val highlight-gold" id="sprintHighScoreVal">0 pts</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Timer Bar -->
+          <div class="sprint-timer-bar">
+            <div class="sprint-timer-fill" id="sprintTimerFill" style="width: 100%;"></div>
+          </div>
+
+          <!-- Active Sprint Target Stage -->
+          <div class="sprint-prompt-stage">
+            <div class="sprint-target-emoji" id="sprintTargetSymbol">✌️</div>
+            <h2 class="sprint-target-name" id="sprintTargetName">PEACE / V</h2>
+            <p class="sprint-target-hint" id="sprintTargetHint">Sign this accurately to camera immediately!</p>
+            <div class="sprint-hit-banner" id="sprintHitBanner">+100 x 2.0 COMBO!</div>
+          </div>
+
+          <div class="sprint-actions">
+            <button class="primary-btn sprint-start-btn pulse-anim" id="btnStartSprint">🚀 Start 30-Second Sprint</button>
+            <button class="control-btn" id="btnEndSprintEarly" style="display: none;">Stop Early ⏹️</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 6: AI CUSTOM TRAINER ==================== -->
+    <section class="tab-pane" id="paneTrainer">
+      <div class="trainer-container glass-panel">
+        <div class="trainer-header">
+          <div>
+            <h2>AI Custom Gesture Studio & Trainer</h2>
+            <p>Teach the AI your own custom sign language gestures! Record hand landmarks directly from your camera and train a Scikit-Learn Random Forest model in seconds.</p>
+          </div>
+          <span class="trainer-badge">⚡ Instant Hot-Reload</span>
+        </div>
+
+        <div class="trainer-grid">
+          <!-- Step 1: Record Gesture Panel -->
+          <div class="trainer-subcard">
+            <div class="step-num-badge">Step 1</div>
+            <h3>Record New Gesture</h3>
+            <p class="step-desc">Enter the name of your gesture (e.g., "TEACHER", "HOME", "WATER", "MOTHER") and hold the posture in front of your camera.</p>
+            
+            <div class="trainer-input-box">
+              <label for="customSignNameInput">Gesture Label / Name:</label>
+              <input type="text" id="customSignNameInput" placeholder="e.g., TEACHER, FRIEND, HOME" maxlength="24">
+            </div>
+
+            <button class="primary-btn record-gesture-btn" id="btnStartRecordGesture">
+              <span class="rec-dot"></span>
+              <span>Record 30 Landmark Frames</span>
+            </button>
+
+            <!-- Recording Progress Bar -->
+            <div class="record-progress-box" id="recordProgressBox" style="display: none;">
+              <div class="rec-labels">
+                <span>Capturing Frames...</span>
+                <span id="recProgressPct">0 / 30</span>
+              </div>
+              <div class="rec-bar">
+                <div class="rec-fill" id="recFill" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Train & Active Models Panel -->
+          <div class="trainer-subcard">
+            <div class="step-num-badge">Step 2</div>
+            <h3>Train & Activate Model</h3>
+            <p class="step-desc">Train the Random Forest classifier on your recorded landmark vectors. The model will immediately activate in the live recognition feed!</p>
+
+            <button class="primary-btn train-model-btn" id="btnTrainCustomModel">
+              <span>⚡ Train AI Model Now</span>
+            </button>
+
+            <div class="trained-classes-tray">
+              <h4>Active Custom Gestures:</h4>
+              <div class="custom-chips-list" id="customChipsList">
+                <span class="empty-note">No custom signs recorded yet. Record your first gesture above!</span>
+              </div>
+            </div>
+
+            <div class="trainer-dataset-actions">
+              <button class="action-btn" id="btnExportCustomDataset">📥 Export Dataset (.json)</button>
+              <button class="action-btn" id="btnImportCustomDataset">📤 Import Dataset (.json)</button>
+              <input type="file" id="importFileInput" accept=".json" style="display: none;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 7: SIGN MEMORY MATCH GAME ==================== -->
+    <section class="tab-pane" id="paneMemory">
+      <div class="memory-game-container glass-panel">
+        <div class="memory-header">
+          <div>
+            <h2>🃏 ISL Brain Memory Match Game</h2>
+            <p>Flip cards to match the hand posture symbol with its corresponding English/Hindi gesture name. Test your memory and learn ISL effortlessly!</p>
+          </div>
+          <div class="memory-stats">
+            <div class="mem-stat-item">
+              <span class="m-label">Moves:</span>
+              <span class="m-val" id="memMoves">0</span>
+            </div>
+            <div class="mem-stat-item">
+              <span class="m-label">Matches:</span>
+              <span class="m-val" id="memMatches">0 / 6</span>
+            </div>
+            <button class="primary-btn" id="btnRestartMemory">🔄 New Game</button>
+          </div>
+        </div>
+
+        <!-- 4x3 Memory Grid -->
+        <div class="memory-cards-grid" id="memoryCardsGrid">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Healthcare & Emergency Phrases Drawer Modal -->
+  <div class="phraseboard-overlay" id="phraseboardOverlay" style="display: none;">
+    <div class="phraseboard-card glass-panel">
+      <div class="pb-header">
+        <h3>🩺 Healthcare & Daily Assistance Quickboard</h3>
+        <button class="icon-btn" id="btnClosePhraseboard">✕</button>
+      </div>
+      <p class="pb-sub">Tap any phrase to instantly speak out loud and copy to sentence builder:</p>
+      <div class="pb-grid">
+        <button class="pb-phrase-btn" data-text="I am in severe pain, please help me.">🔴 I have severe pain</button>
+        <button class="pb-phrase-btn" data-text="I need drinking water immediately.">💧 Need drinking water</button>
+        <button class="pb-phrase-btn" data-text="Please call the doctor or nurse.">🩺 Call Doctor / Nurse</button>
+        <button class="pb-phrase-btn" data-text="Where is the washroom or toilet?">🚻 Where is the restroom?</button>
+        <button class="pb-phrase-btn" data-text="I am deaf and speech-impaired, please write here.">✍️ Please write here</button>
+        <button class="pb-phrase-btn" data-text="I need my emergency medicine.">💊 Need my medicine</button>
+        <button class="pb-phrase-btn" data-text="Please contact my family or guardian.">👨‍👩‍👧 Contact my family</button>
+        <button class="pb-phrase-btn" data-text="Thank you for your kind assistance.">🙏 Thank you so much</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emergency SOS Fullscreen Modal Overlay -->
+  <div class="sos-modal-overlay" id="sosModalOverlay" style="display: none;">
+    <div class="sos-modal-card">
+      <div class="sos-alert-header">
+        <span class="sos-beacon-icon">🚨</span>
+        <h2>EMERGENCY ASSISTANCE BEACON</h2>
+        <p>Rapid emergency alert triggered for hearing & speech impaired assistance.</p>
+      </div>
+
+      <div class="sos-quick-actions">
+        <button class="sos-action-card red" data-msg="EMERGENCY: PLEASE CALL AN AMBULANCE / MEDICAL HELP IMMEDIATELY.">
+          <span class="card-icon">🚑</span>
+          <strong>Call Ambulance</strong>
+          <small>Medical emergency assistance</small>
+        </button>
+        <button class="sos-action-card blue" data-msg="EMERGENCY: PLEASE CALL POLICE. I NEED URGENT SECURITY ASSISTANCE.">
+          <span class="card-icon">🚓</span>
+          <strong>Call Police</strong>
+          <small>Security & safety assistance</small>
+        </button>
+        <button class="sos-action-card amber" data-msg="I AM DEAF / SPEECH-IMPAIRED. PLEASE READ THIS MESSAGE TO HELP ME.">
+          <span class="card-icon">🗣️</span>
+          <strong>Speech Impaired</strong>
+          <small>Show message to bystander</small>
+        </button>
+        <button class="sos-action-card orange" data-msg="EMERGENCY: FIRE HAZARD! PLEASE EVACUATE AND CALL FIRE SERVICES.">
+          <span class="card-icon">🚒</span>
+          <strong>Fire Hazard</strong>
+          <small>Fire department assistance</small>
+        </button>
+      </div>
+
+      <div class="sos-current-msg-box">
+        <label>Active Emergency Broadcast Message:</label>
+        <textarea id="sosMessageText" rows="2" readonly>EMERGENCY: I NEED IMMEDIATE ASSISTANCE / EMERGENCY HELP.</textarea>
+      </div>
+
+      <div class="sos-modal-footer">
+        <button class="control-btn" id="btnDismissSos">Close Alert ✕</button>
+        <button class="action-btn" id="btnCopySos">📋 Copy Alert Message</button>
+        <button class="primary-btn red-btn" id="btnSpeakSos">🔊 Siren & Speak Out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sprint Results Arcade Modal -->
+  <div class="sprint-results-overlay" id="sprintResultsOverlay" style="display: none;">
+    <div class="sprint-modal-card glass-panel">
+      <div class="sprint-res-header">
+        <span class="trophy-icon" id="sprintRankIcon">🏆</span>
+        <h2 id="sprintRankTitle">ISL Grandmaster!</h2>
+        <p id="sprintRankSubtitle">Outstanding speed & gesture mastery!</p>
+      </div>
+      <div class="sprint-res-stats">
+        <div class="sres-item"><span class="sres-l">Signs Mastered:</span><strong id="sresSigns">0</strong></div>
+        <div class="sres-item"><span class="sres-l">Max Multiplier:</span><strong id="sresMultiplier">x1.0</strong></div>
+        <div class="sres-item"><span class="sres-l">Final Score:</span><strong class="highlight-cyan" id="sresScore">0 pts</strong></div>
+        <div class="sres-item"><span class="sres-l">Best Combo:</span><strong id="sresStreak">0 🔥</strong></div>
+      </div>
+      <div class="sprint-res-footer">
+        <button class="control-btn" id="btnCloseSprintModal">Close</button>
+        <button class="primary-btn pulse-anim" id="btnSprintAgain">⚡ Sprint Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Biomechanics Analytics & Proficiency Certificate Modal -->
+  <div class="analytics-modal-overlay" id="analyticsModalOverlay" style="display: none;">
+    <div class="analytics-modal-card glass-panel">
+      <div class="analytics-header">
+        <div class="modal-title-wrap">
+          <span class="analytics-icon">📊</span>
+          <div>
+            <h3>ISL Gesture Biomechanics & Session Analytics</h3>
+            <p>Real-time kinematic stability, finger flexibility radar, and proficiency verification</p>
+          </div>
+        </div>
+        <button class="icon-btn" id="btnCloseAnalytics">✕</button>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="analytics-metrics-grid">
+        <div class="metric-card">
+          <span class="mc-label">Session Signs Signed</span>
+          <span class="mc-value highlight-cyan" id="mTotalSigns">0</span>
+          <span class="mc-sub">Gestures recognized</span>
+        </div>
+        <div class="metric-card">
+          <span class="mc-label">Kinematic Stability</span>
+          <span class="mc-value highlight-emerald" id="mStabilityIndex">94%</span>
+          <span class="mc-sub">Tremor & jitter stability</span>
+        </div>
+        <div class="metric-card">
+          <span class="mc-label">Dominant Hand Usage</span>
+          <span class="mc-value" id="mHandUsage">85% Right</span>
+          <span class="mc-sub">Hand balance ratio</span>
+        </div>
+        <div class="metric-card">
+          <span class="mc-label">Average Confidence</span>
+          <span class="mc-value highlight-purple" id="mAvgConf">92.4%</span>
+          <span class="mc-sub">Neural detection match</span>
+        </div>
+      </div>
+
+      <!-- Certificate Generation Section -->
+      <div class="certificate-section">
+        <div class="cert-header-bar">
+          <h4>🎓 Digital ISL Proficiency Certificate</h4>
+          <span class="cert-status-badge">Official Dora Verification</span>
+        </div>
+        
+        <div class="cert-input-row">
+          <div class="cert-field">
+            <label for="certStudentName">Recipient / Learner Name:</label>
+            <input type="text" id="certStudentName" placeholder="Enter your full name" value="ISL Student Learner">
+          </div>
+          <button class="primary-btn" id="btnGenerateCert">✨ Generate Certificate</button>
+        </div>
+
+        <!-- Canvas Certificate Stage -->
+        <div class="cert-canvas-container">
+          <canvas id="certCanvas" width="800" height="500"></canvas>
+        </div>
+
+        <div class="cert-actions-bar">
+          <button class="action-btn" id="btnDownloadCertPng">📥 Download Certificate (PNG)</button>
+          <button class="action-btn" id="btnShareCert">📋 Copy Certificate Link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Particle Confetti Celebration Canvas -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Main JavaScript App Logic -->
+  <script src="dictionary.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
